@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>KCの土地評価システム</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111827; --soft:#1f2937; --text:#e5e7eb; --muted:#94a3b8; --accent:#22c55e; --warn:#f59e0b; --bad:#ef4444; --line:#334155;
+    --brand:#22c55e; --radius:14px;
+  }
+  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(180deg,#0b1220,#0f172a 30%,#0b1220);color:var(--text)}
+  header{position:sticky;top:0;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:10}
+  .wrap{max-width:960px;margin:0 auto;padding:12px 16px}
+  h1{font-size:18px;margin:0;display:flex;gap:10px;align-items:center}
+  .brand{display:flex;align-items:center;gap:8px}
+  .brand .logo{width:28px;height:28px;border-radius:8px;background:var(--brand);display:inline-block}
+  .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+  button{height:40px;min-width:44px;background:var(--soft);color:var(--text);border:1px solid var(--line);padding:8px 12px;border-radius:12px;cursor:pointer}
+  button:active{transform:scale(.99)}
+  .warn{background:var(--warn);border-color:#d97706;color:#1f1300}
+  .danger{background:var(--bad);border-color:#dc2626}
+
+  main{padding-bottom:92px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .section-title{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px 0}
+  .section-title h2{font-size:16px;margin:0}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:900px){.grid{grid-template-columns:1.1fr .9fr}}
+
+  .row{display:grid;grid-template-columns:1.2fr .9fr .7fr;gap:8px;align-items:center;margin:8px 0}
+  select, input[type="number"], input[type="text"], textarea{width:100%;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px}
+  label{font-size:14px}
+
+  .score-box{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:640px){.score-box{grid-template-columns:1fr 1fr}}
+  .total{background:linear-gradient(180deg,#052e1a,#06230f);border:1px solid #14532d;border-radius:16px;padding:16px}
+  .meter{height:14px;border-radius:999px;background:#0b1220;border:1px solid var(--line);overflow:hidden}
+  .bar{height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e);width:0%}
+  .grade{font-size:26px;margin:0}
+  .tiny{font-size:12px;color:var(--muted)}
+  .kpi{display:flex;gap:8px;flex-wrap:wrap}
+  .kpi .chip{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+
+  .note{min-height:110px}
+
+  .app-footer{position:fixed;left:0;right:0;bottom:0;background:rgba(17,24,39,.96);border-top:1px solid var(--line);padding:10px 12px;z-index:20;backdrop-filter:blur(8px)}
+  .foot-wrap{max-width:960px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .social{display:flex;gap:10px;align-items:center}
+  .social a{display:flex;gap:6px;align-items:center;text-decoration:none;color:#c7d2fe;border:1px solid var(--line);padding:8px 10px;border-radius:12px}
+  .copyright{font-size:12px;color:var(--muted)}
+
+  input, button, select{font-size:16px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <h1>KCの土地評価システム</h1>
+      <span class="pill">モバイル最適</span>
+    </div>
+    <div class="toolbar">
+      <button id="export">エクスポート</button>
+      <button id="import">インポート</button>
+      <button id="reset" class="danger">初期化</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" style="margin-top:10px">
+  <div class="grid">
+    <section class="card" id="left">
+      <div class="section-title"><h2>評価（6項目・100点満点）</h2>
+        <div class="tiny">各項目の評価＝5段階（後述） / 重みは合計100%</div>
+      </div>
+
+      <div id="list"></div>
+
+      <details style="margin-top:10px">
+        <summary>評価方法（5段階）</summary>
+        <div class="tiny">
+          <ol>
+            <li>希望よりとても良い（100点換算）</li>
+            <li>希望より良い（75点換算）</li>
+            <li>ほぼ希望通り！（50点換算）</li>
+            <li>希望をやや外れる（25点換算）</li>
+            <li>希望から大きく外れる（0点換算）</li>
+          </ol>
+          最終スコア＝各項目の（換算点×重み%）の合計（100点満点）
+        </div>
+      </details>
+    </section>
+
+    <section class="card" id="right">
+      <div class="section-title"><h2>結果</h2>
+        <div><button id="print" class="warn">PDF/印刷</button></div>
+      </div>
+
+      <div class="score-box">
+        <div class="total">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <h3 class="grade" id="totalScore">0 点</h3>
+            <div class="kpi">
+              <div class="chip">評価: <b id="verdict">—</b></div>
+              <div class="chip">閾値: <span id="threshold">75点＝「買い」</span></div>
+            </div>
+          </div>
+          <div class="meter" style="margin:10px 0 6px"><div class="bar" id="bar"></div></div>
+          <div class="tiny">合計100点満点（重み×換算点の加重合計）</div>
+        </div>
+        <div class="card" style="background:#0b1220">
+          <div class="section-title" style="margin:0"><h2 style="font-size:14px">判定ルール</h2></div>
+          <div class="tiny">
+            <ul>
+              <li>90〜100：<b>希少で強く推奨</b></li>
+              <li>75〜89：<b>購入推奨</b></li>
+              <li>60〜74：<b>条件付き購入</b></li>
+              <li>〜59：<b>見送り推奨</b></li>
+            </ul>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+            <label class="tiny">「買い」閾値：</label>
+            <input type="number" id="buyThreshold" min="0" max="100" step="1" value="75" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;background:#0b1220">
+        <div class="section-title" style="margin:0"><h2 style="font-size:14px">所見・メモ</h2></div>
+        <textarea id="notes" class="note" placeholder="現地の気づき、交渉材料、追加コスト見込み（例：地盤改良120万円、擁壁確認要など）"></textarea>
+      </div>
+
+      <div class="tiny" style="margin-top:6px">ver 1.1 • © KC</div>
+    </section>
+  </div>
+</main>
+
+<footer class="app-footer" role="contentinfo">
+  <div class="foot-wrap">
+    <div class="social">
+      <a id="linkYT" href="#" target="_blank" rel="noopener" aria-label="YouTube"><span>▶️</span><span>YouTube</span></a>
+      <a id="linkIG" href="#" target="_blank" rel="noopener" aria-label="Instagram"><span>📸</span><span>Instagram</span></a>
+    </div>
+    <div class="copyright">このアプリの著作権は株式会社KCに帰属します。</div>
+  </div>
+</footer>
+
+<script>
+// ========== 定数 ==========
+const SOCIAL = {
+  youtube: "https://www.youtube.com/results?search_query=KCの家づくりLAB.",
+  instagram: "https://www.instagram.com/"
+};
+
+// 5段階 → 0/25/50/75/100 に換算
+const MAP = {
+  5: 100, // 希望よりとても良い
+  4: 75,  // 希望より良い
+  3: 50,  // ほぼ希望通り！
+  2: 25,  // 希望をやや外れる
+  1: 0    // 希望から大きく外れる
+};
+
+// 初期ウエイト（合計100）: 施主一般向け想定
+// 駅20 / 小学校15 / 価格20 / 広さ10 / 建てやすさ15 / ハザード20
+let model = {
+  threshold: 75,
+  notes: "",
+  items: [
+    {key:"eki",      name:"駅距離",             weight:20, score:3},
+    {key:"es",       name:"小学校距離",         weight:15, score:3},
+    {key:"price",    name:"価格",               weight:20, score:3},
+    {key:"size",     name:"広さ",               weight:10, score:3},
+    {key:"build",    name:"建築のしやすさ",     weight:15, score:3},
+    {key:"hazard",   name:"ハザード",           weight:20, score:3}
+  ]
+};
+
+// ========== ユーティリティ ==========
+const $ = (s,root=document)=>root.querySelector(s);
+function save(){ localStorage.setItem("kc_landscore_v2", JSON.stringify(model)); render(); }
+function load(){ try{ return JSON.parse(localStorage.getItem("kc_landscore_v2")); }catch(e){ return null; } }
+
+// 初期ロード
+const saved = load();
+if(saved && saved.items?.length === 6){ model = saved; }
+
+// ========== ロジック ==========
+function normalizeWeights(){
+  let sum = model.items.reduce((a,it)=>a + Number(it.weight||0), 0);
+  if(sum===100 || sum===0) return;
+  // 比例で丸め、端数は上から調整
+  model.items.forEach(it=>{ it.weight = Math.round((it.weight/sum)*100); });
+  let diff = 100 - model.items.reduce((a,it)=>a+it.weight,0);
+  for(let i=0; diff!==0 && i<model.items.length; i++){
+    model.items[i].weight += diff>0?1:-1; diff += diff>0?-1:1;
+  }
+}
+
+function calcTotal(){
+  normalizeWeights();
+  return Math.round(model.items.reduce((sum,it)=> sum + (MAP[it.score] * (it.weight/100)), 0));
+}
+
+function verdict(score){
+  if(score>=90) return "希少で強く推奨";
+  if(score>=model.threshold) return "購入推奨";
+  if(score>=60) return "条件付き購入";
+  return "見送り推奨";
+}
+
+// ========== 描画 ==========
+function render(){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  const options = [
+    {v:5, l:"希望よりとても良い"},
+    {v:4, l:"希望より良い"},
+    {v:3, l:"ほぼ希望通り！"},
+    {v:2, l:"希望をやや外れる"},
+    {v:1, l:"希望から大きく外れる"}
+  ];
+
+  model.items.forEach((it, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `
+      <label>${idx+1}. ${it.name}</label>
+      <select aria-label="評価選択">
+        ${options.map(o=>`<option value="${o.v}" ${it.score===o.v?"selected":""}>${o.l}</option>`).join('')}
+      </select>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="number" min="0" max="100" step="1" value="${it.weight}" aria-label="重み(%)">
+        <span class="tiny">%</span>
+      </div>
+    `;
+    const sel = row.querySelector('select');
+    sel.onchange = e=>{ it.score = Number(e.target.value); save(); };
+    const w = row.querySelector('input[type=number]');
+    w.oninput = e=>{ it.weight = Number(e.target.value||0); save(); };
+    list.appendChild(row);
+  });
+
+  // ノート
+  const notes = document.getElementById('notes');
+  notes.value = model.notes||"";
+  notes.oninput = e=>{ model.notes = e.target.value; save(); };
+
+  // 結果
+  const total = calcTotal();
+  document.getElementById('totalScore').textContent = total + ' 点';
+  document.getElementById('bar').style.width = Math.max(0,Math.min(100,total)) + '%';
+  document.getElementById('verdict').textContent = verdict(total);
+  document.getElementById('threshold').textContent = `${model.threshold}点＝「買い」`;
+  document.getElementById('buyThreshold').value = model.threshold;
+}
+
+// コントロール
+$('#buyThreshold').oninput = e=>{ model.threshold = Number(e.target.value||75); save(); };
+
+$('#export').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(model,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='kc_landscore.json'; a.click(); URL.revokeObjectURL(url);
+};
+$('#import').onclick = ()=>{
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='application/json';
+  inp.onchange = ()=>{
+    const f = inp.files?.[0]; if(!f) return;
+    const fr = new FileReader();
+    fr.onload = ()=>{ try{ const d = JSON.parse(fr.result);
+      if(!Array.isArray(d.items) || d.items.length!==6) throw new Error('形式が違います');
+      model = d; save(); } catch(e){ alert('読み込み失敗：'+e.message); } };
+    fr.readAsText(f);
+  };
+  inp.click();
+};
+$('#reset').onclick = ()=>{
+  if(confirm('初期状態に戻しますか？（現在の内容は失われます）')){
+    localStorage.removeItem('kc_landscore_v2'); location.reload();
+  }
+};
+$('#print').onclick = ()=>{ window.print(); };
+
+// SNSリンク適用
+const yt = document.getElementById('linkYT'); yt.href = SOCIAL.youtube;
+const ig = document.getElementById('linkIG'); ig.href = SOCIAL.instagram;
+
+render();
+</script>
+</body>
+</html>
